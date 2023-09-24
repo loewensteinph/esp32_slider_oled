@@ -23,18 +23,26 @@ class MyTask {
 public:
     char* taskname;  // Attribute
     long pulsesPerMM = 40;
+    uint8_t enablePin = 19;
 };
 
+class Rotate : public MyTask {
+    public:
+        uint8_t rotStepPin = 17;
+        uint8_t rotDirPin = 16;
+};
 
 // Derived class
 class Pan : public MyTask {
 public:
-    uint8_t travStepPin;
+    uint8_t travStepPin = 18;
+    uint8_t travDirPin = 5;
+          
     //long travelPulses;
-    float travelTime = 1;
+    float travelTime = 10;
     float initialtravTime = travelTime; // 5 Sec initial Time
     int minTravelDist = 25;
-    int maxTravelDist = 1270;
+    int maxTravelDist = 800;
     int travelDist = maxTravelDist;
     int travelDistInc = 50;
     int travelDistIncFine = 5;
@@ -45,24 +53,18 @@ public:
     long chunkTravelPulses = getChunkTravelPulses(travelPulses);
 
     void recalcFigures();
+
     long getTravelPulses(long travDist, long pulsesPerMM);
     float getInterval(float travelTime, long travelPulses);
     long getChunkTravelPulses(long travelPulses);
 
     //long travelPulses() { return travelPulses; }
     void executeChunk();
-    Pan() {
-        travelDist = maxTravelDist;
-        pulsesPerMM = pulsesPerMM;
-        travelTime = travelTime;
-        travStepPin = travStepPin;
-        taskname = (char*)"Pan";
-    };
+    void execute();
+    Pan(void);
     Pan(long travDist, float travelTime) :
         travelDist{ travelDist }, travelTime{ travelTime }, travelPulses{ travelPulses }
-    { // Constructor with parameters
-        //travelPulses = getTravelPulses(travelDist, pulsesPerMM);
-        //interval = getInterval(travelTime, travelPulses);
+    { 
         taskname = (char*)"Pan";
     }
 };

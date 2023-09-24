@@ -55,15 +55,19 @@ void test_pan_interval(void) {
     TEST_ASSERT_EQUAL(250, pan.interval);
 }
 
+void test_pan_runtime(void) {
+    pan.travelDist = 600;
+    pan.travelTime = 2;
+    pan.recalcFigures();
+ 
+    TEST_ASSERT_EQUAL(4000, pan.travelPulses);
+    TEST_ASSERT_EQUAL(250, pan.interval);
+}
+
 void test_pan_travel_pulses(void) {
     pan.travelDist = 100; 
     pan.recalcFigures();
     TEST_ASSERT_EQUAL(4000, pan.travelPulses);
-}
-
-void test_calculator_testfunc(void) {
-    MyTask t1;
-    TEST_ASSERT_EQUAL(1, 1);
 }
 
 void test_pan_execute(void) {

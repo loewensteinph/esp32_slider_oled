@@ -44,15 +44,42 @@ void Pan::recalcFigures()
     chunkTravelPulses = getChunkTravelPulses(travelPulses);
 }
 
+Pan::Pan(void){
+    pinMode(enablePin, INPUT); // disable motors 
+    pinMode(travDirPin, OUTPUT);   
+    pinMode(travStepPin, OUTPUT);
+}
+
+void Pan::execute()
+{
+    recalcFigures();
+    pinMode(enablePin, OUTPUT); // enable motors 
+    delay(200);
+    //digitalWrite(travDirPin, LOW);
+    //delay(200);
+    Serial.println(interval);
+    for (long i = 1; i <= travelPulses; i++)
+    {
+        digitalWrite(travStepPin, HIGH);
+        delayMicroseconds(interval);
+        digitalWrite(travStepPin, LOW);
+    }
+    pinMode(enablePin, INPUT); // disable motors 
+}
+
 void Pan::executeChunk()
 {
     recalcFigures();
-    long workpulses = chunkTravelPulses;
-    for (long i = 1; i <= workpulses; i++)
+    pinMode(enablePin, OUTPUT); // enable motors 
+    //long workpulses = chunkTravelPulses;
+    //pinMode(enablePin, OUTPUT); // enable motors 
+    Serial.println(interval);
+    for (long i = 1; i <= chunkTravelPulses; i++)
     {
         digitalWrite(travStepPin, HIGH);
-        delayMicroseconds(interval / 2);
+        delayMicroseconds(interval);
         digitalWrite(travStepPin, LOW);
-        delayMicroseconds(interval / 2);
     }
+    //pinMode(enablePin, INPUT); // disable motors     
+    pinMode(enablePin, INPUT); // disable motors     
 }

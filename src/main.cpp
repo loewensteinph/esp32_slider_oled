@@ -172,6 +172,7 @@ CHOOSE(chooseTest,chooseMenu,"Choose",doNothing,noEvent,wrapStyle
 
 MENU(mainMenu, "Slider Menu", doNothing, anyEvent, wrapStyle
   ,FIELD(pan.travelDist,"Distance","mm",pan.minTravelDist,pan.maxTravelDist,pan.travelDistInc,pan.travelDistIncFine, inputTravelDist, enterEvent , noStyle)  
+  ,FIELD(pan.travelTime,"Time","s",1,3600,1,1, inputTravelDist, enterEvent , noStyle)  
   ,OP("Pan test",resRunPan,enterEvent)
   //,altOP(altPrompt,"",doNothing,noEvent)
   //,OP("Op1",action1,anyEvent)
@@ -336,35 +337,50 @@ void runPan() {
     //u8g2.drawBox(12, 29, 107, 10); -> 100%
     volatile int progress = 0;
 
-    long travelDist = 100;
-    long pulsesPerMM = 40;
-    float travTime = 5;
-    uint8_t travStepPin = 22;
-
+    //uint64_t start = esp_timer_get_time();
     Pan pan;
+    pan.travelTime = 30;
+    pan.travelDist = 200;
 
-    uint64_t start = esp_timer_get_time();
-
+    //pan.travelTime = 2;
+    //pan.travelDist = 100;
+    digitalWrite(pan.travDirPin, HIGH); // Enables the motor to move in a particular direction
+    //Serial.println("direction pin HIGH");
     while (progress < 100) {
-        int barWidth = 70;
         pan.executeChunk();
-        u8g2.drawBox(12, 25, progress, 10);
-        
-        char buffer[6];
-        sprintf(buffer, "%d %", progress);
-      
-        u8g2.drawStr(53,45, buffer);
-        u8g2.sendBuffer();
+        //u8g2.drawBox(12, 25, progress, 10);
+        //u8g2.updateDisplayArea(12,25,100,10);        
+        //char buffer[6];
+        //sprintf(buffer, "%d %", progress);    
+        //u8g2.drawStr(53,45, buffer);
+
         progress += 1; // for demonstration only
     }
-    delay(1500);
-    uint64_t end = esp_timer_get_time();
-    printf("%llu milliseconds",(end - start)/1000);
+    //u8g2.sendBuffer();
+    progress = 0;
+    delay(500);
+    digitalWrite(pan.travDirPin, LOW); //Changes the direction of rotation
+    while (progress < 100) {
+        pan.executeChunk();
+        //u8g2.drawBox(12, 25, progress, 10);
+        //u8g2.updateDisplayArea(12,25,100,10);
+        //char buffer[6];
+        //sprintf(buffer, "%d %", progress);    
+        //u8g2.drawStr(53,45, buffer);
 
-    char buffer2[12];
-    sprintf(buffer2, "%d", (end - start)/1000);
-    u8g2.drawStr(53, 70,buffer2);
-        u8g2.sendBuffer();
+        progress += 1; // for demonstration only
+    }  
+    //u8g2.sendBuffer();
+    progress = 0;
+  //Serial.println("direction pin LOW");y(1500);
+    //pinMode(pan.enablePin, INPUT); // disable motors     
+    //uint64_t end = esp_timer_get_time();
+    //printf("%llu milliseconds",(end - start)/1000);
+
+    //char buffer2[12];
+    //sprintf(buffer2, "%d", (end - start)/1000);
+    //u8g2.drawStr(53, 70,buffer2);
+    //    u8g2.sendBuffer();
     exitMenuOptions = 0; // Return to the menu
     //mainMenu.dirty = true;
     //subMenuPan.dirty = true;
@@ -374,17 +390,11 @@ void runPan() {
 void loop() {
   constexpr int menuFPS = 1000 / 30;
   static unsigned long lastMenuFrame = - menuFPS;
-  unsigned long now = millis();
-  // put your main code here, to run repeatedly:
-
-   
-  if (nav.changed(0)) {//only draw if menu changed for gfx device
-    u8g2.firstPage();
-    do nav.doOutput(); while(u8g2.nextPage());
-  }
+  //unsigned long now = millis();
+  //put your main code here, to run repeatedly:
   switch (exitMenuOptions) {
     case 1: {
-        delay(500); // Pause to allow the button to come up
+        //delay(500); // Pause to allow the button to come up
         runPan(); 
         break;
       }
@@ -394,9 +404,15 @@ void loop() {
         break;
       }
     default: // Do the normal program functions with ArduinoMenu
-      if (now - lastMenuFrame >= menuFPS) {
+     {
+      //if (now - lastMenuFrame >= menuFPS) {
         button.check(); // acebutton check, rotary is on ISR
         nav.doInput(); // menu check
+      //}
       }
+  }
+  if (nav.changed(0)) {//only draw if menu changed for gfx device
+    u8g2.firstPage();
+    do nav.doOutput(); while(u8g2.nextPage());
   }
 }
