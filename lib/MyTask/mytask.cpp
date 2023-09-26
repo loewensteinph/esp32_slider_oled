@@ -24,7 +24,11 @@ long Pan::getTravelPulses(long travDist, long pulsesPerMM)
     return travelPulses;
 }
 
-//Calculate the interval required between pulses to achieve duration
+
+/// @brief Calculate the interval required between pulses to achieve duration
+/// @param travelTime Configured travel time to travel distance
+/// @param travelPulses 
+/// @return 
 float Pan::getInterval(float travelTime, long travelPulses)
 {
     float inter = travelTime * 1000000 / travelPulses;
@@ -42,6 +46,8 @@ void Pan::recalcFigures()
     travelPulses = getTravelPulses(travelDist, pulsesPerMM);
     interval = getInterval(travelTime, travelPulses);
     chunkTravelPulses = getChunkTravelPulses(travelPulses);
+    Serial.print ("Interval:");
+    Serial.println (interval);
 }
 
 Pan::Pan(void){
@@ -55,9 +61,7 @@ void Pan::execute()
     recalcFigures();
     pinMode(enablePin, OUTPUT); // enable motors 
     delay(200);
-    //digitalWrite(travDirPin, LOW);
-    //delay(200);
-    Serial.println(interval);
+    //Serial.println(interval);
     for (long i = 1; i <= travelPulses; i++)
     {
         digitalWrite(travStepPin, HIGH);
@@ -69,17 +73,23 @@ void Pan::execute()
 
 void Pan::executeChunk()
 {
-    recalcFigures();
-    pinMode(enablePin, OUTPUT); // enable motors 
-    //long workpulses = chunkTravelPulses;
+    //recalcFigures();
     //pinMode(enablePin, OUTPUT); // enable motors 
-    Serial.println(interval);
+    //Serial.println(interval);    
     for (long i = 1; i <= chunkTravelPulses; i++)
     {
         digitalWrite(travStepPin, HIGH);
         delayMicroseconds(interval);
         digitalWrite(travStepPin, LOW);
-    }
+    } 
     //pinMode(enablePin, INPUT); // disable motors     
-    pinMode(enablePin, INPUT); // disable motors     
+}
+
+void Pan::enableMotors()
+{
+    pinMode(enablePin, OUTPUT); // enable motors 
+}
+void Pan::disableMotors()
+{
+   pinMode(enablePin, INPUT); // disable motors   
 }

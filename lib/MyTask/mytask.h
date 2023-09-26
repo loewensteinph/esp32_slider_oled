@@ -39,10 +39,11 @@ public:
     uint8_t travDirPin = 5;
           
     //long travelPulses;
-    float travelTime = 10;
+    float minInterval = 125;
+    float travelTime = 1;
     float initialtravTime = travelTime; // 5 Sec initial Time
     int minTravelDist = 25;
-    int maxTravelDist = 800;
+    int maxTravelDist = 600;
     int travelDist = maxTravelDist;
     int travelDistInc = 50;
     int travelDistIncFine = 5;
@@ -67,5 +68,7 @@ public:
     { 
         taskname = (char*)"Pan";
     }
+    void enableMotors();
+    void disableMotors();
 };
 #endif
