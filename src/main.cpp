@@ -68,19 +68,10 @@ const colorDef<uint8_t> colors[6] MEMMODE={
 #define MAX_DEPTH 2
 
 int exitMenuOptions = 0; //Forces the menu to exit and cut the copper tape
+bool tooFast;
 
-result inputTravelDist(eventMask e,navNode& nav, prompt &item) {
+result inputTravelDist(menuOut& o,eventMask e,navNode& nav, prompt &item) {
   pan.recalcFigures();
-  float enteredInterval = pan.interval;
-  if(enteredInterval<pan.minInterval)
-  {
-    // TODO: Handle GUI give feedback
-     Serial.print("inputTravelDist event: too fast!"); 
-     return proceed;
-  }
-  Serial.print("inputTravelDist event:");
-  Serial.println(pan.travelDist);
-  Serial.flush();
   return proceed;
 }
 
@@ -99,8 +90,22 @@ result idle(menuOut& o,idleEvent e) {
   return proceed;
 }
 
-result drawPan(menuOut& o, idleEvent e) {
+result drawPan(menuOut& o, idleEvent e) {  
   u8g2.clearBuffer();
+  if(tooFast)
+  {
+    menuIdle = true;
+    exitMenuOptions == 0;
+    o.setCursor(0, 0);
+    o.print("Too fast");
+    o.setCursor(0, 1);
+    o.print("press [select]");
+    o.setCursor(0, 2);
+    o.print("to continue...");
+    Serial.print("Pan event: too fast!");     
+    return proceed;
+  }
+
   while (exitMenuOptions == 1) {
     u8g2.setFont(fontName);
     u8g2.drawStr(35, 13, "Running Pan");
@@ -138,12 +143,11 @@ void runPanWorkload() {
     exitMenuOptions = 0; // Return to the menu
     menuIdle = false;
 }
-result doPan(eventMask e, prompt &item);
-
+result doPan(eventMask e, prompt &item);    
 
 MENU(mainMenu, "Slider Menu", doNothing, anyEvent, wrapStyle
   ,FIELD(pan.travelDist,"Distance","mm",pan.minTravelDist,pan.maxTravelDist,pan.travelDistInc,pan.travelDistIncFine, inputTravelDist, enterEvent , noStyle)  
-  ,FIELD(pan.travelTime,"Time","s",1,3600,1,1, inputTravelDist, enterEvent , noStyle)  
+  ,FIELD(pan.travelTime,"Time","s",1,3600,1,1, inputTravelDist, enterEvent , noStyle)
   ,OP("Pan test",doPan,enterEvent)
   ,EXIT("<Back")
 );
@@ -165,7 +169,12 @@ MENU_OUTPUTS(out,MAX_DEPTH
 NAVROOT(nav,mainMenu,MAX_DEPTH,in,out);
 
 result doPan(eventMask e, prompt &item) {
-  exitMenuOptions = 1;
+  tooFast = pan.interval<pan.minInterval;
+  Serial.println(tooFast);
+  if (!tooFast) //prevent workload if too fast
+  {
+    exitMenuOptions = 1;
+  }
   nav.idleOn(drawPan);
   return proceed;
 }
@@ -297,7 +306,7 @@ void loop()
           break;
         }
       case 2: {
-          delay(40); // Pause to allow the button to come up
+          delay(500); // Pause to allow the button to come up
           //runRotate();
           break;
         }
