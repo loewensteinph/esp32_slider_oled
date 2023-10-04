@@ -44,16 +44,25 @@ long Pan::getChunkTravelPulses(long travelPulses)
 void Pan::recalcFigures()
 {
     travelPulses = getTravelPulses(travelDist, pulsesPerMM);
-    interval = getInterval(travelTime, travelPulses);
+    interval = getInterval(travelTime, travelPulses); 
+    tooFast = interval < minInterval;
     chunkTravelPulses = getChunkTravelPulses(travelPulses);
-    Serial.print ("Interval:");
-    Serial.println (interval);
+
+    if (travelDir==0)
+    {
+       digitalWrite(travDirPin, HIGH);
+    }
+    else
+    {
+       digitalWrite(travDirPin, LOW);  
+    }
 }
 
 Pan::Pan(void){
     pinMode(enablePin, INPUT); // disable motors 
     pinMode(travDirPin, OUTPUT);   
     pinMode(travStepPin, OUTPUT);
+    recalcFigures();
 }
 
 void Pan::execute()

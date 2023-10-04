@@ -70,10 +70,6 @@ const colorDef<uint8_t> colors[6] MEMMODE={
 int exitMenuOptions = 0; //Forces the menu to exit and cut the copper tape
 bool tooFast;
 
-result inputTravelDist(menuOut& o,eventMask e,navNode& nav, prompt &item) {
-  pan.recalcFigures();
-  return proceed;
-}
 
 result resRunPan() {
   delay(500);
@@ -143,11 +139,26 @@ void runPanWorkload() {
     exitMenuOptions = 0; // Return to the menu
     menuIdle = false;
 }
-result doPan(eventMask e, prompt &item);    
 
-MENU(mainMenu, "Slider Menu", doNothing, anyEvent, wrapStyle
-  ,FIELD(pan.travelDist,"Distance","mm",pan.minTravelDist,pan.maxTravelDist,pan.travelDistInc,pan.travelDistIncFine, inputTravelDist, enterEvent , noStyle)  
-  ,FIELD(pan.travelTime,"Time","s",1,3600,1,1, inputTravelDist, enterEvent , noStyle)
+result doPan(eventMask e, prompt &item);    
+result inputChangeHandler(menuOut& o,eventMask e,navNode& nav, prompt &item);
+result disableMenuItem(eventMask e,navNode& nav,prompt& item);
+
+const char* constMEM dummyMask[] MEMMODE={""};
+char speedCheck[] = " ";
+
+SELECT(pan.travelDir,dirPanMenu,"Direction",doNothing,noEvent,wrapStyle
+  ,VALUE(">",0,inputChangeHandler,enterEvent)
+  ,VALUE("<",1,inputChangeHandler,enterEvent)
+);
+
+
+MENU(mainMenu, "Slider Menu", disableMenuItem, anyEvent, wrapStyle
+  ,FIELD(pan.travelDist,"Distance","mm",pan.minTravelDist,pan.maxTravelDist,pan.travelDistInc,pan.travelDistIncFine, inputChangeHandler, enterEvent , noStyle)  
+  ,FIELD(pan.travelTime,"Time","s",1,3600,1,1, inputChangeHandler, enterEvent , noStyle)
+  ,EDIT("Speed", speedCheck, dummyMask, doNothing, noEvent, noStyle)
+  //,FIELD(pan.interval,"Interval","s",1,3600,1,1, readOnly, anyEvent , noStyle)
+  ,SUBMENU(dirPanMenu)
   ,OP("Pan test",doPan,enterEvent)
   ,EXIT("<Back")
 );
@@ -168,16 +179,45 @@ MENU_OUTPUTS(out,MAX_DEPTH
 
 NAVROOT(nav,mainMenu,MAX_DEPTH,in,out);
 
+result disableMenuItem(eventMask e,navNode& nav,prompt& item) {
+  if(nav.selected().getText()==std::string("Speed"))
+  {
+    mainMenu.dirty = true;
+    nav.selected().disable();
+  }
+  return proceed;
+}
+
+result inputChangeHandler(menuOut& o,eventMask e,navNode& nav, prompt &item) {
+  
+  pan.recalcFigures();
+
+  if(pan.tooFast)
+  {
+      strcpy(speedCheck, "!");
+      return proceed;
+      mainMenu.dirty = true;
+  }
+  else
+  {
+      strcpy(speedCheck, " ");
+      return proceed;
+  }
+
+  return proceed;
+}
+
 result doPan(eventMask e, prompt &item) {
-  tooFast = pan.interval<pan.minInterval;
+  pan.tooFast;
   Serial.println(tooFast);
-  if (!tooFast) //prevent workload if too fast
+  if (!pan.tooFast) //prevent workload if too fast
   {
     exitMenuOptions = 1;
   }
   nav.idleOn(drawPan);
   return proceed;
 }
+
 
 // This is the ISR (interrupt service routine) for rotary events
 // We will convert/relay events to the RotaryEventIn object
@@ -227,6 +267,8 @@ void initMenu() {
   buttonConfig->setFeature(ButtonConfig::kFeatureSuppressAfterDoubleClick);
 
   nav.idleTask=idle;//point a function to be used when menu is suspended
+
+  //mainMenu[2].disable();
   // setup OLED disaply
   Wire.begin(SDA,SCL);
   u8g2.begin();

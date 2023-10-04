@@ -39,6 +39,7 @@ public:
     uint8_t travDirPin = 5;
           
     //long travelPulses;
+    bool tooFast = false;
     float minInterval = 125;
     float travelTime = 1;
     float initialtravTime = travelTime; // 5 Sec initial Time
