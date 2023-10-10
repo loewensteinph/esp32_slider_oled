@@ -16,9 +16,6 @@
 #include <Arduino.h>
 #include <mytask.h>
 #include <unity.h>
-#include <menuIO/u8g2Out.h>
-#include <menuIO/chainStream.h>
-#include <menuIO/rotaryEventIn.h>
 
 MyTask task;
 //long travelDist = 100;
@@ -27,13 +24,8 @@ MyTask task;
 //uint8_t travStepPin = 22;
 Pan pan;
 
-
-U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE);//allow contrast change
-
 void setUp(void) {
     // set stuff up here
-    
-
 }
 
 void tearDown(void) {

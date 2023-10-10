@@ -15,10 +15,12 @@
 static portMUX_TYPE my_mutex;
 
 volatile int progress = 0;
-TaskHandle_t  Core0TaskHnd ;  
-TaskHandle_t  Core1TaskHnd ; 
+TaskHandle_t  Core0TaskHnd;  
+TaskHandle_t  Core1TaskHnd; 
 
 Pan pan;
+Rot rot;
+Job job;
 
 #define LEDPIN 2
 
@@ -77,6 +79,12 @@ result resRunPan() {
   return proceed;
 }
 
+result resRunPanRotate() {
+  delay(500);
+  exitMenuOptions = 2;
+  return proceed;
+}
+
 result idle(menuOut& o,idleEvent e) {
   switch(e) {
     case idleStart:o.print("suspending menu!");break;
@@ -86,7 +94,7 @@ result idle(menuOut& o,idleEvent e) {
   return proceed;
 }
 
-result drawPan(menuOut& o, idleEvent e) {  
+result drawJob(menuOut& o, idleEvent e) {  
   u8g2.clearBuffer();
   if(tooFast)
   {
@@ -101,65 +109,142 @@ result drawPan(menuOut& o, idleEvent e) {
     Serial.print("Pan event: too fast!");     
     return proceed;
   }
+  u8g2.setFont(fontName);
+  u8g2.drawStr(35, 13, job.jobToStr(job.jobtype));    
 
   while (exitMenuOptions == 1) {
-    u8g2.setFont(fontName);
-    u8g2.drawStr(35, 13, "Running Pan");
     u8g2.drawStr(33, 32, String(progress).c_str());
     u8g2.drawStr(60, 32, "% done");
     u8g2.sendBuffer();
     delay(100);
-  }  
+  }
+  while (exitMenuOptions == 2) {
+    u8g2.drawStr(33, 32, String(progress).c_str());
+    u8g2.drawStr(60, 32, "% done");
+    u8g2.sendBuffer();
+    delay(100);
+  }
+  while (exitMenuOptions == 3) {
+    u8g2.drawStr(33, 32, String(progress).c_str());
+    u8g2.drawStr(60, 32, "% done");
+    u8g2.sendBuffer();
+    delay(100);
+  }
   if (e == idling) {
-    o.setCursor(0, 0);
-    o.print("Pan done");
     o.setCursor(0, 1);
-    o.print("press [select]");
+    o.print("done");    
     o.setCursor(0, 2);
+    o.print("press [select]");
+    o.setCursor(0, 3);
     o.print("to continue...");
+    job.pan.disableMotors();   
     return proceed;
   }
   return proceed;
-    //mainMenu.dirty = true; // Return to the menu
 }
 
 void runPanWorkload() {
     menuIdle = true;
-    //pan.travelTime = 10;
-    //pan.travelDist = 200;
-    digitalWrite(pan.travDirPin, HIGH); // Enables the motor to move in a particular direction
+    digitalWrite(job.pan.travDirPin, HIGH); // Enables the motor to move in a particular direction
     //Serial.println("direction pin HIGH");
-    pan.recalcFigures();
-    pan.enableMotors();
+    job.pan.recalcFigures();
+    job.pan.enableMotors();
     while (progress <= 100) {
-        pan.executeChunk();
+        job.executePanChunk();
         progress += 1; // for demonstration only
     }
     progress = 0;
     exitMenuOptions = 0; // Return to the menu
+    job.pan.disableMotors();    
     menuIdle = false;
 }
 
-result doPan(eventMask e, prompt &item);    
+void runRotateWorkload() {
+    menuIdle = true;
+    digitalWrite(job.rot.rotationDir, HIGH); // Enables the motor to move in a particular direction
+    //Serial.println("direction pin HIGH")
+    job.jobtype = job.doRotate;
+    job.recalcFigures();
+    job.rot.enableMotors();
+    while (progress <= 100) {
+        job.executeRotateChunk();
+        progress += 1; // for demonstration only
+    }
+    progress = 0;
+    exitMenuOptions = 0; // Return to the menu
+    job.pan.disableMotors();    
+    menuIdle = false;
+}
+
+void runPanRotateWorkload() {
+    menuIdle = true;
+    digitalWrite(pan.travDirPin, HIGH); // Enables the motor to move in a particular direction
+    //Serial.println("direction pin HIGH")
+    job.jobtype = job.doPanRotate;
+    job.recalcFigures();
+    job.pan.enableMotors();
+    while (progress <= 100) {
+        job.executePanRotateChunk();
+        progress += 1; // for demonstration only
+    }
+    progress = 0;
+    exitMenuOptions = 0; // Return to the menu
+    job.pan.disableMotors();    
+    menuIdle = false;
+}
+
+result doPan(eventMask e, prompt &item);
+result doRotate(eventMask e, prompt &item);
+result doPanRotate(eventMask e, prompt &item);
 result inputChangeHandler(menuOut& o,eventMask e,navNode& nav, prompt &item);
 result disableMenuItem(eventMask e,navNode& nav,prompt& item);
 
 const char* constMEM dummyMask[] MEMMODE={""};
-char speedCheck[] = " ";
+char panSpeedCheck[] = " ";
+char rotSpeedCheck[] = " ";
 
-SELECT(pan.travelDir,dirPanMenu,"Direction",doNothing,noEvent,wrapStyle
+int testval =0;
+
+result testHandler(menuOut& o,eventMask e,navNode& nav, prompt &item) { 
+    menuIdle = true;
+    job.rot.recalcFigures();
+    job.rot.enableMotors();
+    while (progress <= 100) {
+        job.executePanRotateChunk();
+        //rot.executeChunk();
+        progress += 1; // for demonstration only
+    }
+    progress = 0;
+    exitMenuOptions = 0; // Return to the menu
+    pan.disableMotors();    
+  return proceed;
+};
+
+SELECT(job.pan.travelDir,dirPanMenu,"Trav Dir",doNothing,noEvent,wrapStyle
+  ,VALUE(">",0,inputChangeHandler,enterEvent)
+  ,VALUE("<",1,inputChangeHandler,enterEvent)
+);
+
+SELECT(job.rot.rotationDir,dirRotMenu,"Rot Dir",doNothing,noEvent,wrapStyle
   ,VALUE(">",0,inputChangeHandler,enterEvent)
   ,VALUE("<",1,inputChangeHandler,enterEvent)
 );
 
 
 MENU(mainMenu, "Slider Menu", disableMenuItem, anyEvent, wrapStyle
-  ,FIELD(pan.travelDist,"Distance","mm",pan.minTravelDist,pan.maxTravelDist,pan.travelDistInc,pan.travelDistIncFine, inputChangeHandler, enterEvent , noStyle)  
-  ,FIELD(pan.travelTime,"Time","s",1,3600,1,1, inputChangeHandler, enterEvent , noStyle)
-  ,EDIT("Speed", speedCheck, dummyMask, doNothing, noEvent, noStyle)
-  //,FIELD(pan.interval,"Interval","s",1,3600,1,1, readOnly, anyEvent , noStyle)
+  ,FIELD(testval,"Test","1",1,3600,1,1, testHandler, enterEvent, noStyle)
+  ,FIELD(job.pan.travelDist,"Distance","mm",job.pan.minTravelDist,job.pan.maxTravelDist,job.pan.travelDistInc,job.pan.travelDistIncFine, inputChangeHandler, enterEvent , noStyle)  
+  ,FIELD(job.pan.travelTime,"Time","s",1,3600,1,1, inputChangeHandler, enterEvent , noStyle)
+  ,EDIT("Speed", panSpeedCheck, dummyMask, doNothing, noEvent, noStyle)
   ,SUBMENU(dirPanMenu)
-  ,OP("Pan test",doPan,enterEvent)
+  ,OP("Pan test",doPan,enterEvent)  
+  ,FIELD(job.rot.rotationAngle,"Rot Ang","\xb0",1,360,5,1, inputChangeHandler, enterEvent , noStyle)
+  ,FIELD(job.rot.pulsesPerDeg,"PPerDeg","1",5.0,80.0,0.1,0.01, inputChangeHandler, enterEvent, noStyle)
+  ,OP("Rot test",doRotate,enterEvent)  
+  ,EDIT("Speed", rotSpeedCheck, dummyMask, doNothing, noEvent, noStyle)
+  ,SUBMENU(dirRotMenu)
+  //,FIELD(pan.interval,"Interval","s",1,3600,1,1, readOnly, anyEvent , noStyle)
+  ,OP("PanRot test",doPanRotate,enterEvent)    
   ,EXIT("<Back")
 );
 
@@ -189,36 +274,71 @@ result disableMenuItem(eventMask e,navNode& nav,prompt& item) {
 }
 
 result inputChangeHandler(menuOut& o,eventMask e,navNode& nav, prompt &item) {
-  
-  pan.recalcFigures();
-
-  if(pan.tooFast)
+  //apply configured time to rotation could be configured individual with additional menu entry
+  job.rot.rotationTime = job.pan.travelTime;
+  job.recalcFigures();
+  if(job.pan.tooFast)
   {
-      strcpy(speedCheck, "!");
+      strcpy(panSpeedCheck, "!");
       return proceed;
       mainMenu.dirty = true;
   }
   else
   {
-      strcpy(speedCheck, " ");
+      strcpy(panSpeedCheck, " ");
       return proceed;
   }
-
+  if(job.rot.tooFast)
+  {
+      strcpy(rotSpeedCheck, "!");
+      return proceed;
+      mainMenu.dirty = true;
+  }
+  else
+  {
+      strcpy(rotSpeedCheck, " ");
+      return proceed;
+  }
   return proceed;
 }
 
 result doPan(eventMask e, prompt &item) {
-  pan.tooFast;
-  Serial.println(tooFast);
-  if (!pan.tooFast) //prevent workload if too fast
+  job.jobtype = job.doPan;
+  if (!job.pan.tooFast) //prevent workload if too fast
   {
     exitMenuOptions = 1;
   }
-  nav.idleOn(drawPan);
+  nav.idleOn(drawJob);
   return proceed;
 }
 
+result doRotate(eventMask e, prompt &item) {
+  Serial.print("rotationAngle: "); 
+  Serial.println(job.rot.rotationAngle); 
+  Serial.print("rotInterval: "); 
+  Serial.println(job.rot.rotationInterval);
+  Serial.print("too Fast: "); 
+  Serial.println(job.rot.tooFast);     
+  job.jobtype = job.doRotate;
+  if (!job.rot.tooFast) //prevent workload if too fast
+  {
+    exitMenuOptions = 2;
+  }
+  nav.idleOn(drawJob);
+  return proceed;
+}
 
+result doPanRotate(eventMask e, prompt &item) {
+  Serial.print("rotationAngle: "); 
+  Serial.println(job.rot.rotationAngle);   
+  job.jobtype = job.doPanRotate;  
+  if (!job.pan.tooFast && !job.rot.tooFast) //prevent workload if too fast
+  {
+    exitMenuOptions = 3;
+  }
+  nav.idleOn(drawJob);
+  return proceed;
+}
 // This is the ISR (interrupt service routine) for rotary events
 // We will convert/relay events to the RotaryEventIn object
 // Callback config in setup()
@@ -226,7 +346,6 @@ void IRAM_ATTR IsrForQDEC(void) {
   QDECODER_EVENT event = qdec.update();
   if (event & QDECODER_EVENT_CW) { reIn.registerEvent(RotaryEventIn::EventType::ROTARY_CW); }
   else if (event & QDECODER_EVENT_CCW) { reIn.registerEvent(RotaryEventIn::EventType::ROTARY_CCW); }
-
 }
 
 // This is the handler/callback for button events
@@ -235,8 +354,7 @@ void IRAM_ATTR IsrForQDEC(void) {
 void handleButtonEvent(AceButton* /* button */, uint8_t eventType, uint8_t buttonState) {
   switch (eventType) {
     case AceButton::kEventClicked:
-      reIn.registerEvent(RotaryEventIn::EventType::BUTTON_CLICKED);
-      
+      reIn.registerEvent(RotaryEventIn::EventType::BUTTON_CLICKED);      
       break;
     case AceButton::kEventDoubleClicked:
       reIn.registerEvent(RotaryEventIn::EventType::BUTTON_DOUBLE_CLICKED);
@@ -300,9 +418,16 @@ void CoreTask0( void * parameter )
         }
       case 2: {
           delay(500); // Pause to allow the button to come up
+          menuIdle = true;
           //runRotate();
           break;
         }
+      case 3: {
+          delay(500); // Pause to allow the button to come up
+          menuIdle = true;
+          //runRotate();
+          break;
+        }        
       default: // Do the normal program functions with ArduinoMenu
       {
           menuIdle = false;
@@ -331,10 +456,12 @@ void setup()
 
   xTaskCreatePinnedToCore(CoreTask0,"CPU_0",2000,NULL,1,&Core0TaskHnd,0);
 
-  pinMode(pan.travStepPin, OUTPUT);
-  pinMode(pan.travDirPin, OUTPUT);
-  pinMode(pan.enablePin, OUTPUT);
-  digitalWrite(pan.enablePin, LOW);
+  pinMode(job.pan.travStepPin, OUTPUT);
+  pinMode(job.pan.travDirPin, OUTPUT);
+  pinMode(job.pan.enablePin, OUTPUT);
+  digitalWrite(job.pan.enablePin, HIGH);
+  pinMode(job.rot.rotStepPin, OUTPUT);
+  pinMode(job.rot.rotDirPin, OUTPUT);
   delay(500);
 }
 
@@ -342,20 +469,19 @@ void loop()
 {
   switch (exitMenuOptions) {
       case 1: {
-          delay(500); // Pause to allow the button to come up
           runPanWorkload();
-          //Serial.print ("Work Todo!!!!:");
           break;
         }
       case 2: {
-          delay(500); // Pause to allow the button to come up
-          //runRotate();
+          runRotateWorkload();
           break;
         }
+      case 3: {
+          runPanRotateWorkload();
+          break;
+        }        
       default: // Do the normal program functions with ArduinoMenu
       {
-          //Serial.print ("Application CPU is on core:");
-          //Serial.println (xPortGetCoreID());
           delay(400);
           break;
       }

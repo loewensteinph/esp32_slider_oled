@@ -17,19 +17,43 @@
 
 #ifndef MYTASK_H
 #define MYTASK_H
+
 // Base class
 class MyTask {
-
 public:
     char* taskname;  // Attribute
     long pulsesPerMM = 40;
+    float pulsesPerDeg = 27.8;
     uint8_t enablePin = 19;
+
+    void enableMotors();
+    void disableMotors();    
 };
 
-class Rotate : public MyTask {
+// Derived class
+class Rot : public MyTask {
     public:
         uint8_t rotStepPin = 17;
         uint8_t rotDirPin = 16;
+
+        bool tooFast = false;
+        float minInterval = 150;
+        float rotationTime = 3;
+        int rotationDir = 0; // 0 forward  1 backward
+        int rotationAngle = 90;
+
+        long rotationPulses = getRotationPulses(rotationAngle, pulsesPerMM);
+        float rotationInterval = getRotationInterval(rotationTime, rotationPulses);
+        long chunkRotationPulses = getChunkRotationPulses(rotationPulses);
+        
+        Rot(void);
+        void recalcFigures();
+        long getRotationPulses(long rotateAngle, long pulsesPerDeg);
+        float getRotationInterval(float rotationTime, long rotationPulses);
+        long getChunkRotationPulses(long rotationPulses);
+
+        void execute();
+        void executeChunk();
 };
 
 // Derived class
@@ -41,10 +65,10 @@ public:
     //long travelPulses;
     bool tooFast = false;
     float minInterval = 125;
-    float travelTime = 1;
+    float travelTime = 3;
     float initialtravTime = travelTime; // 5 Sec initial Time
     int minTravelDist = 25;
-    int maxTravelDist = 600;
+    int maxTravelDist = 50;
     int travelDist = maxTravelDist;
     int travelDistInc = 50;
     int travelDistIncFine = 5;
@@ -69,7 +93,22 @@ public:
     { 
         taskname = (char*)"Pan";
     }
-    void enableMotors();
-    void disableMotors();
 };
+
+// Base class
+class Job {
+public:
+    Rot rot; //To just have a pointer to another object.
+    Pan pan; //To just have a pointer to another object.    
+    enum Jobs { doPan, doRotate, doPanRotate, doTrack };
+    Jobs jobtype = doPan;    
+    double pulseAdjustFactor = getPulseAdjustFactor(pan.chunkTravelPulses,rot.chunkRotationPulses);
+    double getPulseAdjustFactor(long chunkTravelPulses,long chunkRotationPulses);
+    void executePanChunk();
+    void executeRotateChunk();    
+    void executePanRotateChunk();    
+    void recalcFigures();
+    char* jobToStr(Job::Jobs job);
+};
+
 #endif
