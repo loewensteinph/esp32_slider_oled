@@ -184,7 +184,7 @@ void runPanRotateWorkload() {
     job.recalcFigures();
     job.pan.enableMotors();
     while (progress <= 100) {
-        job.executePanRotateChunk();
+        job.executePanRotateChunk2();
         progress += 1; // for demonstration only
     }
     progress = 0;

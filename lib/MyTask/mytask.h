@@ -68,7 +68,7 @@ public:
     float travelTime = 3;
     float initialtravTime = travelTime; // 5 Sec initial Time
     int minTravelDist = 25;
-    int maxTravelDist = 50;
+    int maxTravelDist = 800;
     int travelDist = maxTravelDist;
     int travelDistInc = 50;
     int travelDistIncFine = 5;
@@ -107,6 +107,7 @@ public:
     void executePanChunk();
     void executeRotateChunk();    
     void executePanRotateChunk();    
+    void executePanRotateChunk2();     
     void recalcFigures();
     char* jobToStr(Job::Jobs job);
 };

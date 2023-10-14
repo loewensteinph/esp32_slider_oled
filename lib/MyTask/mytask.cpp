@@ -221,6 +221,50 @@ void Job::executePanRotateChunk()
         digitalWrite(pan.travStepPin, LOW); 
     }
 }
+
+/// @brief executePanRotateChunk
+/// @return 
+void Job::executePanRotateChunk2()
+{
+    long runtime = (pan.travelTime / 100) * 1000;
+    long endrun = millis() + runtime;
+
+    double pulseAdjustFactor = getPulseAdjustFactor(pan.chunkTravelPulses,rot.chunkRotationPulses);
+    long longPulses = max(pan.chunkTravelPulses, rot.chunkRotationPulses);
+    double rotAdjust = 1;
+    double panAdjust = 1;
+    long prevAdjustRot = 0;
+    long prevAdjustPan = 0;    
+
+    if (pan.chunkTravelPulses >= longPulses)
+    {
+        rotAdjust = pulseAdjustFactor;
+    }
+    if (rot.chunkRotationPulses >= longPulses)
+    {
+        panAdjust = pulseAdjustFactor;
+    }
+
+    while(millis() < endrun){
+        for (long i = 1; i <= longPulses; i++)
+        {           
+            if (long((i * rotAdjust)+0.5) > prevAdjustRot)
+            {
+                digitalWrite(rot.rotStepPin, HIGH);
+                delayMicroseconds(pan.interval * rotAdjust);
+                digitalWrite(rot.rotStepPin, LOW); 
+                prevAdjustRot = long((i * rotAdjust)+0.5);
+            }
+            if (long((i * panAdjust)+0.5) > prevAdjustPan)
+            {
+                digitalWrite(pan.travStepPin, HIGH);
+                delayMicroseconds(pan.interval * panAdjust);
+                digitalWrite(pan.travStepPin, LOW); 
+                prevAdjustPan = long((i * panAdjust)+0.5);
+            }
+        }    
+    }
+}
 /// @brief executePanChunk
 /// @return 
 void Job::executePanChunk()
