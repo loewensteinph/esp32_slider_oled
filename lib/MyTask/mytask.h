@@ -14,6 +14,7 @@
  limitations under the License.
 **/
 #include <chrono>
+#include "FastAccelStepper.h"
 
 #ifndef MYTASK_H
 #define MYTASK_H
@@ -23,34 +24,33 @@ class MyTask {
 public:
     char* taskname;  // Attribute
     long pulsesPerMM = 40;
-    float pulsesPerDeg = 27.8;
+    double pulsesPerDeg = 27.8;
     uint8_t enablePin = 19;
 
     void enableMotors();
-    void disableMotors();    
+    void disableMotors();
 };
 
 // Derived class
 class Rot : public MyTask {
     public:
-        uint8_t rotStepPin = 17;
-        uint8_t rotDirPin = 16;
+        uint8_t rotStepPin = 18;
+        uint8_t rotDirPin = 5;
 
         bool tooFast = false;
         float minInterval = 150;
         float rotationTime = 3;
         int rotationDir = 0; // 0 forward  1 backward
-        int rotationAngle = 90;
+        double rotationAngle = 90;
 
-        long rotationPulses = getRotationPulses(rotationAngle, pulsesPerMM);
-        float rotationInterval = getRotationInterval(rotationTime, rotationPulses);
-        long chunkRotationPulses = getChunkRotationPulses(rotationPulses);
-        
+        int rotTargetPos;        
+        int rotSpeedInHz;
+
         Rot(void);
+
+        int getRotTargetPosition();   
+        int getRotSpeedInHz();   
         void recalcFigures();
-        long getRotationPulses(long rotateAngle, long pulsesPerDeg);
-        float getRotationInterval(float rotationTime, long rotationPulses);
-        long getChunkRotationPulses(long rotationPulses);
 
         void execute();
         void executeChunk();
@@ -59,37 +59,32 @@ class Rot : public MyTask {
 // Derived class
 class Pan : public MyTask {
 public:
-    uint8_t travStepPin = 18;
-    uint8_t travDirPin = 5;
+    uint8_t travStepPin = 16;
+    uint8_t travDirPin = 17;
           
-    //long travelPulses;
     bool tooFast = false;
     float minInterval = 125;
     float travelTime = 3;
     float initialtravTime = travelTime; // 5 Sec initial Time
     int minTravelDist = 25;
-    int maxTravelDist = 800;
+    int maxTravelDist = 600;
     int travelDist = maxTravelDist;
     int travelDistInc = 50;
     int travelDistIncFine = 5;
     int travelDir = 0; // 0 forward  1 backward
 
-    long travelPulses = getTravelPulses(travelDist, pulsesPerMM);
-    float interval = getInterval(travelTime, travelPulses);
-    long chunkTravelPulses = getChunkTravelPulses(travelPulses);
+    int panTargetPos;
+    int panSpeedInHz;
 
+    int getPanTargetPosition();
+    int getPanSpeedInHz();
     void recalcFigures();
 
-    long getTravelPulses(long travDist, long pulsesPerMM);
-    float getInterval(float travelTime, long travelPulses);
-    long getChunkTravelPulses(long travelPulses);
-
-    //long travelPulses() { return travelPulses; }
     void executeChunk();
     void execute();
     Pan(void);
     Pan(long travDist, float travelTime) :
-        travelDist{ travelDist }, travelTime{ travelTime }, travelPulses{ travelPulses }
+        travelDist{ travelDist }, travelTime{ travelTime }
     { 
         taskname = (char*)"Pan";
     }
@@ -98,18 +93,27 @@ public:
 // Base class
 class Job {
 public:
+
     Rot rot; //To just have a pointer to another object.
-    Pan pan; //To just have a pointer to another object.    
+    Pan pan; //To just have a pointer to another object.
+
+    FastAccelStepperEngine engine;
+    FastAccelStepper *panStepper = NULL;
+    FastAccelStepper *rotStepper = NULL;
+
     enum Jobs { doPan, doRotate, doPanRotate, doTrack };
     Jobs jobtype = doPan;    
-    double pulseAdjustFactor = getPulseAdjustFactor(pan.chunkTravelPulses,rot.chunkRotationPulses);
-    double getPulseAdjustFactor(long chunkTravelPulses,long chunkRotationPulses);
-    void executePanChunk();
-    void executeRotateChunk();    
-    void executePanRotateChunk();    
-    void executePanRotateChunk2();     
+
+    int jobProgress;
+    void executePanChunk(double progress);
+    void executeRotateChunk(double progress);    
+    void executePanRotateChunk(double progress);      
     void recalcFigures();
     char* jobToStr(Job::Jobs job);
+
+    Job(void);
+
+    float get_angle_2points(int p1x, int p1y, int p2x, int p2y);
 };
 
 #endif

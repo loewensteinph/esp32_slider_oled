@@ -38,123 +38,48 @@ Rot::Rot(void){
     pinMode(enablePin, OUTPUT);
 }
 
-/// @brief Calculates the number of pulses required to rotate a certain angle
-/// @param rotateAngle Configured rotate angle
-/// @param pulsesPerDeg Configured required Pulses to rotate 1 degree
-/// @return 
-long Rot::getRotationPulses(long rotateAngle, long pulsesPerDeg)
-{
-    long rotatePulses = rotateAngle * pulsesPerDeg;
-    return rotatePulses;
-}
-
-/// @brief Calculates the number of pulses required to rotate a certain angle
-/// @param rotateAngle Configured rotate angle
-/// @param pulsesPerDeg Configured required Pulses to rotate 1 degree
-/// @return 
-float Rot::getRotationInterval(float rotationTime,long rotatePulses)
-{
-    float rotationInterval = rotationTime * 1000000 / rotatePulses;
-    return rotationInterval;
-}
-/// @brief Splits Pulses in 100 chunks 
-/// @param rotatePulses Rquired Pulses to travel distance
-/// @return 
-long Rot::getChunkRotationPulses(long rotationPulses)
-{
-    long chunkRotatePulses = rotationPulses / 100;
-    return chunkRotatePulses;
-}
-/// @brief Recalculates numbers after change of parameters
-/// @return 
-void Rot::recalcFigures()
-{
-    rotationPulses = getRotationPulses(rotationAngle, pulsesPerDeg);
-    rotationInterval = getRotationInterval(rotationTime, rotationPulses); 
-    tooFast = rotationInterval < minInterval;
-    chunkRotationPulses = getChunkRotationPulses(rotationPulses);
-
-    if (rotationDir==0)
-    {
-       digitalWrite(rotDirPin, HIGH);
-    }
-    else
-    {
-       digitalWrite(rotDirPin, LOW);  
-    }
-}
 /// @brief Enables motors and travels configured distance
 /// @return 
 void Rot::execute()
 {
-    recalcFigures();
-    delay(200);
-    //Serial.println(interval);
-    for (long i = 1; i <= rotationPulses; i++)
-    {
-        digitalWrite(rotStepPin, HIGH);
-        delayMicroseconds(rotationInterval);
-        digitalWrite(rotStepPin, LOW);
-    }
-    pinMode(enablePin, INPUT); // disable motors 
+
 }
 /// @brief Enables motors and travels one chunk of 100
 /// @return 
 void Rot::executeChunk()
 {
-    for (long i = 1; i <= chunkRotationPulses; i++)
-    {
-        digitalWrite(rotStepPin, HIGH);
-        delayMicroseconds(rotationInterval);
-        digitalWrite(rotStepPin, LOW);
-    } 
-}
 
-/// @brief Calculates the number of pulses required to move a certain distance
-/// @param travDist Configured travel distance
-/// @param pulsesPerMM Configured required Pulses to travel 1mm 
-/// @return 
-long Pan::getTravelPulses(long travDist, long pulsesPerMM)
-{
-    long travelPulses = travelDist * pulsesPerMM;
-    return travelPulses;
 }
-
-/// @brief Calculate the interval required between pulses to achieve duration
-/// @param travelTime Configured travel time to travel distance
-/// @param travelPulses Rquired Pulses to travel distance
-/// @return 
-float Pan::getInterval(float travelTime, long travelPulses)
-{
-    float inter = travelTime * 1000000 / travelPulses;
-    return inter;
-}
-
-/// @brief Splits Pulses in 100 chunks 
-/// @param travelPulses Rquired Pulses to travel distance
-/// @return 
-long Pan::getChunkTravelPulses(long travelPulses)
-{
-    long chunkTravelPulses = travelPulses / 100;
-    return chunkTravelPulses;
-}
-
 /// @brief Recalculates numbers after change of parameters
 /// @return 
 void Pan::recalcFigures()
 {
-    travelPulses = getTravelPulses(travelDist, pulsesPerMM);
-    interval = getInterval(travelTime, travelPulses); 
-    tooFast = interval < minInterval;
-    chunkTravelPulses = getChunkTravelPulses(travelPulses);
+    panSpeedInHz = getPanSpeedInHz();
+    panTargetPos = getPanTargetPosition();  
 
     if (travelDir==0)
     {
-       digitalWrite(travDirPin, HIGH);
+       panTargetPos = panTargetPos;
     }
     else
     {
-       digitalWrite(travDirPin, LOW);  
+       panTargetPos = -panTargetPos;
+    }
+}
+/// @brief Recalculates numbers after change of parameters
+/// @return 
+void Rot::recalcFigures()
+{
+    rotSpeedInHz = getRotSpeedInHz();
+    rotTargetPos = getRotTargetPosition();
+    
+    if (rotationDir==0)
+    {
+       rotTargetPos = rotTargetPos;
+    }
+    else
+    {
+       rotTargetPos = -rotTargetPos;
     }
 }
 /// @brief Constructor
@@ -169,124 +94,35 @@ Pan::Pan(void){
 /// @return 
 void Pan::execute()
 {
-    recalcFigures();
-    delay(200);
-    //Serial.println(interval);
-    for (long i = 1; i <= travelPulses; i++)
-    {
-        digitalWrite(travStepPin, HIGH);
-        delayMicroseconds(interval);
-        digitalWrite(travStepPin, LOW);
-    }
-    pinMode(enablePin, INPUT); // disable motors 
 }
 
 /// @brief Enables motors and travels one chunk of 100
 /// @return 
 void Pan::executeChunk()
 {
-    for (long i = 1; i <= chunkTravelPulses; i++)
-    {
-        digitalWrite(travStepPin, HIGH);
-        delayMicroseconds(interval);
-        digitalWrite(travStepPin, LOW);
-    } 
+
 }
 /// @brief executePanRotateChunk
 /// @return 
-void Job::executePanRotateChunk()
+void Job::executePanRotateChunk(double progress)
 {
-    double pulseAdjustFactor = getPulseAdjustFactor(pan.chunkTravelPulses,rot.chunkRotationPulses);
-    long longPulses = max(pan.chunkTravelPulses, rot.chunkRotationPulses);
-    double rotAdjust = 1;
-    double panAdjust = 1;
-
-    if (pan.chunkTravelPulses >= longPulses)
-    {
-        rotAdjust = pulseAdjustFactor;
-    }
-    if (rot.chunkRotationPulses >= longPulses)
-    {
-        panAdjust = pulseAdjustFactor;
-    }
-
-    for (long i = 1; i <= longPulses; i++)
-    {
-        digitalWrite(rot.rotStepPin, HIGH);
-        delayMicroseconds(pan.interval*rotAdjust);
-        digitalWrite(rot.rotStepPin, LOW); 
-       
-        digitalWrite(pan.travStepPin, HIGH);
-        delayMicroseconds(pan.interval*panAdjust);
-        digitalWrite(pan.travStepPin, LOW); 
-    }
-}
-
-/// @brief executePanRotateChunk
-/// @return 
-void Job::executePanRotateChunk2()
-{
-    long runtime = (pan.travelTime / 100) * 1000;
-    long endrun = millis() + runtime;
-
-    double pulseAdjustFactor = getPulseAdjustFactor(pan.chunkTravelPulses,rot.chunkRotationPulses);
-    long longPulses = max(pan.chunkTravelPulses, rot.chunkRotationPulses);
-    double rotAdjust = 1;
-    double panAdjust = 1;
-    long prevAdjustRot = 0;
-    long prevAdjustPan = 0;    
-
-    if (pan.chunkTravelPulses >= longPulses)
-    {
-        rotAdjust = pulseAdjustFactor;
-    }
-    if (rot.chunkRotationPulses >= longPulses)
-    {
-        panAdjust = pulseAdjustFactor;
-    }
-
-    while(millis() < endrun){
-        for (long i = 1; i <= longPulses; i++)
-        {           
-            if (long((i * rotAdjust)+0.5) > prevAdjustRot)
-            {
-                digitalWrite(rot.rotStepPin, HIGH);
-                delayMicroseconds(pan.interval * rotAdjust);
-                digitalWrite(rot.rotStepPin, LOW); 
-                prevAdjustRot = long((i * rotAdjust)+0.5);
-            }
-            if (long((i * panAdjust)+0.5) > prevAdjustPan)
-            {
-                digitalWrite(pan.travStepPin, HIGH);
-                delayMicroseconds(pan.interval * panAdjust);
-                digitalWrite(pan.travStepPin, LOW); 
-                prevAdjustPan = long((i * panAdjust)+0.5);
-            }
-        }    
-    }
+    panStepper->moveTo(pan.panTargetPos/100*progress);
+    rotStepper->moveTo(rot.rotTargetPos/100*progress);
+    jobProgress <- progress;    
 }
 /// @brief executePanChunk
 /// @return 
-void Job::executePanChunk()
+void Job::executePanChunk(double progress)
 {
-    pan.executeChunk();
+    panStepper->moveTo(pan.panTargetPos/100*progress);
+    jobProgress <- progress;
 }
 /// @brief executePanChunk
 /// @return 
-void Job::executeRotateChunk()
+void Job::executeRotateChunk(double progress)
 {
-    rot.executeChunk();
-}
-/// @brief getPulseAdjustFactor
-/// @return 
-double Job::getPulseAdjustFactor(long chunkTravelPulses,long chunkRotationPulses)
-{
-    long shortPulses;
-    long longPulses;
-    shortPulses = min(chunkTravelPulses, chunkRotationPulses);
-    longPulses = max(chunkTravelPulses, chunkRotationPulses);
-    double pulseAdjustFactor = (double)shortPulses/(double)longPulses;
-    return pulseAdjustFactor;
+    rotStepper->moveTo(rot.rotTargetPos/100*progress);
+    jobProgress <- progress;
 }
 /// @brief recalcFigures
 /// @return 
@@ -294,6 +130,19 @@ void Job::recalcFigures()
 {
     pan.recalcFigures();
     rot.recalcFigures();
+
+    panStepper->setSpeedInHz(pan.panSpeedInHz);
+    rotStepper->setSpeedInHz(rot.rotSpeedInHz);
+
+    // TODO: improve acceleration value
+    panStepper->setAcceleration(pan.panSpeedInHz/2);
+    rotStepper->setAcceleration(rot.rotSpeedInHz/2);
+    
+    // TODO: makes stepper loose information where relative position is
+    panStepper->setCurrentPosition(0);
+    rotStepper->setCurrentPosition(0);
+
+    jobProgress = 0;
 }
 /// @brief jobToStr
 /// @return 
@@ -307,4 +156,61 @@ char* Job::jobToStr(Job::Jobs job)
         case Job::doTrack : return (char*)"Track";
         default : return (char*)"";
     }
+}
+
+/// @brief Constructor
+/// @return 
+Job::Job(void){
+    rot = Rot();
+    pan = Pan(); 
+    pan.recalcFigures();
+    rot.recalcFigures();
+}
+
+int Pan::getPanSpeedInHz()
+{
+    return  (int)round(travelDist * pulsesPerMM / travelTime);
+}
+
+int Rot::getRotSpeedInHz()
+{ 
+    return (int)round(rotationAngle * pulsesPerDeg / rotationTime);    
+}
+
+int Pan::getPanTargetPosition()
+{
+    return (int)round(travelDist * pulsesPerMM);
+}
+
+int Rot::getRotTargetPosition()
+{ 
+    return (int)round(rotationAngle * pulsesPerDeg);
+}
+
+// Takes 2 Window coords(points), turns them into vectors using the origin and calculates the angle around the xaxis between them.
+// This function can be used for any hdc window. Ie 2 mouse points.
+float Job::get_angle_2points(int p1x, int p1y, int p2x, int p2y)
+{
+    //Make point1 the origin, make point2 relative to the origin so we do point1 - point1, and point2-point1,
+    //since we dont need point1 for the equation to work, the equation works correctly with the origin 0,0.
+    int deltaY = p2y - p1y;
+    int deltaX = p2x - p1x; //Vector 2 is now relative to origin, the angle is the same, we have just transformed it to use the origin.
+
+    float angleInDegrees = atan2(deltaY, deltaX) * 180 / 3.141;
+
+    //angleInDegrees *= -1; // Y axis is inverted in computer windows, Y goes down, so invert the angle.
+
+    //Angle returned as:
+    //                      90
+    //            135                45
+    //
+    //       180          Origin           0
+    //
+    //           -135                -45
+    //
+    //                     -90
+
+
+    // returned angle can now be used in the c++ window function used in text angle alignment. ie plf->lfEscapement = angle*10;
+    return angleInDegrees;
 }
